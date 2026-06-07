@@ -1,0 +1,7 @@
+name=The Fog Descend
+id=TheFogDescend
+description=A world event mod that periodically triggers a thick, dangerous fog during which zombies become sprinters and highly aggressive. Features vehicle malfunctions in the fog. Inspired by 'The Darkness Is Coming'.
+require=LivingWorldFramework
+poster=poster.png
+version=1.0
+pzversion=42

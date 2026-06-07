@@ -1,0 +1,9 @@
+module Base {
+
+    sound TheFogDescend_Siren
+    {
+        category = Ambient, loop = false, is3D = false,
+        clip { file = media/sound/siren1.ogg, volume = 0.9, }
+    }
+
+}
