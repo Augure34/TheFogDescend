@@ -9,7 +9,9 @@ if not eventDef then
     return
 end
 
-local isEventActive = false
+TheFogDescend = TheFogDescend or {}
+TheFogDescend.isEventActive = false
+
 
 -- Indices confirmed from vanilla ISAdmPanelClimate.lua
 local FLOAT_DESATURATION = 0
@@ -22,7 +24,10 @@ local FLOAT_DAYLIGHT_STRENGTH = 11
 -- Define scheduler callbacks
 
 eventDef.onStart = function(state)
-    isEventActive = true
+    TheFogDescend.isEventActive = true
+    if isServer() then
+        sendServerCommand("TheFogDescend", "startEvent", {})
+    end
     local fogVal = LivingWorldFramework.GetConfig("TheFogDescend", "FogIntensity")
     local makeSprinters = LivingWorldFramework.GetConfig("TheFogDescend", "MakeSprinters")
     local makeAggressive = LivingWorldFramework.GetConfig("TheFogDescend", "MakeAggressive")
@@ -73,7 +78,10 @@ eventDef.onUpdate = function(state, dt)
 end
 
 eventDef.onStop = function(state)
-    isEventActive = false
+    TheFogDescend.isEventActive = false
+    if isServer() then
+        sendServerCommand("TheFogDescend", "stopEvent", {})
+    end
     print("[TheFogDescend] Event stopping. Popping modifiers and clearing overrides.")
 
     -- Pop sandbox modifications
@@ -112,7 +120,7 @@ local function checkVehicleStall()
 end
 
 local function onEveryOneMinute()
-    if not isEventActive then return end
+    if not TheFogDescend.isEventActive then return end
 
     if isServer() then
         sendServerCommand("TheFogDescend", "checkVehicleStall", {})
@@ -123,3 +131,13 @@ local function onEveryOneMinute()
 end
 
 Events.EveryOneMinute.Add(onEveryOneMinute)
+
+local function onClientCommand(module, command, player, args)
+    if module == "TheFogDescend" then
+        if command == "requestState" then
+            sendServerCommand(player, "TheFogDescend", "syncState", { isEventActive = TheFogDescend.isEventActive })
+        end
+    end
+end
+Events.OnClientCommand.Add(onClientCommand)
+
