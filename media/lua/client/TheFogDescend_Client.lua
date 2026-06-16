@@ -52,21 +52,7 @@ local function onGameStart()
     end
 end
 
-local function itemHasGasMaskTag(item)
-    if not item or not item.getTags then return false end
-    
-    local tags = item:getTags()
-    if not tags then return false end
-    
-    for i = 0, tags:size() - 1 do
-        local tag = tags:get(i)
-        if tag and (tag == "gasmask" or tag == "base:gasmask" or (type(tag) == "string" and tag:sub(-8) == ":gasmask")) then
-            return true
-        end
-    end
 
-    return false
-end
 
 local function onPlayerUpdate(player)
     -- Only run for the local player
@@ -106,6 +92,11 @@ local function onPlayerUpdate(player)
         error("[TheFogDescend] LivingWorldFramework config 'ToxicFogEnabled' is missing or nil!")
     end
 
+    local deathHours = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicityDeathHours")
+    if not deathHours or deathHours <= 0 then
+        error("[TheFogDescend] LivingWorldFramework config 'ToxicityDeathHours' is missing, nil, or invalid!")
+    end
+
     local isSafe = true
     if toxicFogEnabled and TheFogDescend.isEventActive then
         if player.isGodMod and player:isGodMod() then
@@ -123,14 +114,9 @@ local function onPlayerUpdate(player)
                     for i = 0, wornItems:size() - 1 do
                         local wornItem = wornItems:get(i)
                         local item = wornItem:getItem()
-                        if item then
-                            local fullType = item:getFullType()
-                            local shortType = item:getType()
-                            local isGasMask = TheFogDescend.gasMasks[fullType] or TheFogDescend.gasMasks[shortType] or itemHasGasMaskTag(item)
-                            if isGasMask and item:getCondition() > 0 then
-                                hasMask = true
-                                break
-                            end
+                        if item and item:hasTag(ItemTag.GAS_MASK) and item:getCondition() > 0 then
+                            hasMask = true
+                            break
                         end
                     end
                 end
@@ -140,11 +126,6 @@ local function onPlayerUpdate(player)
                 end
             end
         end
-    end
-
-    local deathHours = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicityDeathHours")
-    if not deathHours or deathHours <= 0 then
-        error("[TheFogDescend] LivingWorldFramework config 'ToxicityDeathHours' is missing, nil, or invalid!")
     end
 
     if isSafe then

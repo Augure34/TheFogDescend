@@ -2,29 +2,18 @@ LivingWorldFramework = LivingWorldFramework or {}
 LivingWorldFramework.events = LivingWorldFramework.events or {}
 
 TheFogDescend = TheFogDescend or {}
-TheFogDescend.gasMasks = TheFogDescend.gasMasks or {
-    ["Base.Hat_GasMask"] = true,
-    ["Hat_GasMask"] = true,
-}
-
-function TheFogDescend.registerGasMask(itemFullType)
-    if not itemFullType then return end
-    TheFogDescend.gasMasks[itemFullType] = true
-    print("[TheFogDescend] Registered custom gas mask: " .. tostring(itemFullType))
-end
-
 -- Preset configurations for TheFogDescend
 TheFogDescend.isApplyingPreset = false
 TheFogDescend.presets = {
     ["Normal"] = {
         MinTimeUntilFirstTrigger = 5,
-        MaxTimeUntilFirstTrigger = 5,
+        MaxTimeUntilFirstTrigger = 10,
         MinDuration = 24,
-        MaxDuration = 24,
+        MaxDuration = 72,
         MinCooldown = 5,
-        MaxCooldown = 5,
+        MaxCooldown = 10,
         TriggerChance = 0.20,
-        PlaySiren = false,
+        PlaySiren = true,
         ShowRadioWarnings = true,
         MakeSprinters = true,
         MakeAggressive = true,
@@ -33,33 +22,18 @@ TheFogDescend.presets = {
     },
     ["Hardcore"] = {
         MinTimeUntilFirstTrigger = 2,
-        MaxTimeUntilFirstTrigger = 2,
-        MinDuration = 48,
-        MaxDuration = 48,
-        MinCooldown = 3,
-        MaxCooldown = 3,
-        TriggerChance = 0.40,
+        MaxTimeUntilFirstTrigger = 30,
+        MinDuration = 12,
+        MaxDuration = 120,
+        MinCooldown = 1,
+        MaxCooldown = 30,
+        TriggerChance = 0.25,
         PlaySiren = true,
         ShowRadioWarnings = true,
         MakeSprinters = true,
         MakeAggressive = true,
         ToxicFogEnabled = true,
         ToxicityDeathHours = 6
-    },
-    ["Permanent Fog"] = {
-        MinTimeUntilFirstTrigger = 0,
-        MaxTimeUntilFirstTrigger = 0,
-        MinDuration = 168,
-        MaxDuration = 168,
-        MinCooldown = 1,
-        MaxCooldown = 1,
-        TriggerChance = 1.00,
-        PlaySiren = false,
-        ShowRadioWarnings = true,
-        MakeSprinters = true,
-        MakeAggressive = true,
-        ToxicFogEnabled = true,
-        ToxicityDeathHours = 12
     }
 }
 
@@ -77,11 +51,11 @@ local eventDef = {
     
     -- Scheduling defaults
     defaultMinTimeUntilFirstTrigger = 5,
-    defaultMaxTimeUntilFirstTrigger = 5,
+    defaultMaxTimeUntilFirstTrigger = 10,
     defaultMinDuration = 24,
-    defaultMaxDuration = 24,
+    defaultMaxDuration = 72,
     defaultMinCooldown = 5,
-    defaultMaxCooldown = 5,
+    defaultMaxCooldown = 10,
     defaultTriggerChance = 0.2,
     radioWarning = {
         leadHours = 24,
@@ -100,7 +74,7 @@ local eventDef = {
 
     configOptions = {
         { type = "title", name = "Event Presets" },
-        { id = "Preset", name = "Configuration Preset", type = "enum", options = { "Normal", "Hardcore", "Permanent Fog", "Custom" }, defaultIndex = 1, tooltip = "Select a preset configuration, or customize settings below.",
+        { id = "Preset", name = "Configuration Preset", type = "enum", options = { "Normal", "Hardcore", "Custom" }, defaultIndex = 1, tooltip = "Select a preset configuration, or customize settings below.",
           onChange = function(group, value)
               if value == "Custom" then return end
               local presetData = TheFogDescend.presets[value]
@@ -121,15 +95,15 @@ local eventDef = {
         
         -- Scheduling parameters (explicitly defined to support callbacks & section grouping)
         { id = "MinTimeUntilFirstTrigger", name = "Min Time Until First Trigger (Days)", type = "integer", min = 0, max = 365, default = 5, tooltip = "Minimum number of days before the event can trigger for the first time.", onChange = onFineTuneChange, hidden = false },
-        { id = "MaxTimeUntilFirstTrigger", name = "Max Time Until First Trigger (Days)", type = "integer", min = 0, max = 365, default = 5, tooltip = "Maximum number of days before the event can trigger for the first time.", onChange = onFineTuneChange, hidden = false },
+        { id = "MaxTimeUntilFirstTrigger", name = "Max Time Until First Trigger (Days)", type = "integer", min = 0, max = 365, default = 10, tooltip = "Maximum number of days before the event can trigger for the first time.", onChange = onFineTuneChange, hidden = false },
         { id = "MinDuration", name = "Min Duration (Hours)", type = "integer", min = 1, max = 168, default = 24, tooltip = "Minimum duration of the event in hours.", onChange = onFineTuneChange, hidden = false },
-        { id = "MaxDuration", name = "Max Duration (Hours)", type = "integer", min = 1, max = 168, default = 24, tooltip = "Maximum duration of the event in hours.", onChange = onFineTuneChange, hidden = false },
+        { id = "MaxDuration", name = "Max Duration (Hours)", type = "integer", min = 1, max = 168, default = 72, tooltip = "Maximum duration of the event in hours.", onChange = onFineTuneChange, hidden = false },
         { id = "MinCooldown", name = "Min Cooldown (Days)", type = "integer", min = 1, max = 100, default = 5, tooltip = "Minimum days between occurrences.", onChange = onFineTuneChange, hidden = false },
-        { id = "MaxCooldown", name = "Max Cooldown (Days)", type = "integer", min = 1, max = 100, default = 5, tooltip = "Maximum days between occurrences.", onChange = onFineTuneChange, hidden = false },
+        { id = "MaxCooldown", name = "Max Cooldown (Days)", type = "integer", min = 1, max = 100, default = 10, tooltip = "Maximum days between occurrences.", onChange = onFineTuneChange, hidden = false },
         { id = "TriggerChance", name = "Daily Trigger Probability", type = "double", min = 0.0, max = 1.0, step = 0.05, default = 0.20, tooltip = "The probability checked once per day when the event is eligible to trigger (e.g. 0.20 = 20% chance per day).", onChange = onFineTuneChange, hidden = false },
         
         -- Siren & Radio Warnings
-        { id = "PlaySiren", name = "Play Siren Alarm", type = "boolean", default = false, tooltip = "Play a warning siren when the fog begins.", onChange = onFineTuneChange, hidden = false },
+        { id = "PlaySiren", name = "Play Siren Alarm", type = "boolean", default = true, tooltip = "Play a warning siren when the fog begins.", onChange = onFineTuneChange, hidden = false },
         { id = "ShowRadioWarnings", name = "Enable Radio Warnings", type = "boolean", default = true, tooltip = "Whether warnings for this event are injected into the automated weather forecast channel.", onChange = onFineTuneChange, hidden = false },
         
         -- Custom options
