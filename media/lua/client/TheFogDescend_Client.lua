@@ -52,6 +52,22 @@ local function onGameStart()
     end
 end
 
+local function itemHasGasMaskTag(item)
+    if not item or not item.getTags then return false end
+    
+    local tags = item:getTags()
+    if not tags then return false end
+    
+    for i = 0, tags:size() - 1 do
+        local tag = tags:get(i)
+        if tag and (tag == "gasmask" or tag == "base:gasmask" or (type(tag) == "string" and tag:sub(-8) == ":gasmask")) then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function onPlayerUpdate(player)
     -- Only run for the local player
     if not player or not player:isLocalPlayer() then return end
@@ -73,87 +89,114 @@ local function onPlayerUpdate(player)
     local currentHours = getGameTime():getWorldAgeHours()
     if not lastHours or currentHours < lastHours then
         lastHours = currentHours
-    else
-        local dt = currentHours - lastHours
-        lastHours = currentHours
+        return
+    end
 
-        -- Accumulate toxicity only when game clock advances
-        if dt > 0 and dt <= 24 then
-            -- Determine if toxic fog is enabled and active
-            local toxicFogEnabled = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicFogEnabled")
-            if toxicFogEnabled == nil then
-                error("[TheFogDescend] LivingWorldFramework config 'ToxicFogEnabled' is missing or nil!")
-            end
+    local dt = currentHours - lastHours
+    lastHours = currentHours
 
-            local isSafe = true
-            if toxicFogEnabled and TheFogDescend.isEventActive then
-                if player.isGodMod and player:isGodMod() then
-                    isSafe = true
-                else
-                    -- Check if player is outside of a building
-                    local square = player:getCurrentSquare()
-                    local isOutside = not square or square:isOutside()
-                    
-                    if isOutside then
-                        -- Check if wearing a valid gas mask
-                        local hasMask = false
-                        local wornItems = player:getWornItems()
-                        if wornItems then
-                            for i = 0, wornItems:size() - 1 do
-                                externItem = wornItems:get(i)
-                                local item = externItem:getItem()
-                                if item then
-                                    local fullType = item:getFullType()
-                                    local shortType = item:getType()
-                                    local isGasMask = TheFogDescend.gasMasks[fullType] or TheFogDescend.gasMasks[shortType]
-                                    if not isGasMask and item.hasTag then
-                                        isGasMask = item:hasTag("gasmask") or item:hasTag("base:gasmask")
-                                    end
-                                    if isGasMask and item:getCondition() > 0 then
-                                        hasMask = true
-                                        break
-                                    end
-                                end
+    -- Defensively ignore negative dt or extremely large jumps (e.g. teleporting, debug)
+    if dt <= 0 or dt > 24 then
+        return
+    end
+
+    -- Determine if toxic fog is enabled and active
+    local toxicFogEnabled = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicFogEnabled")
+    if toxicFogEnabled == nil then
+        error("[TheFogDescend] LivingWorldFramework config 'ToxicFogEnabled' is missing or nil!")
+    end
+
+    local isSafe = true
+    if toxicFogEnabled and TheFogDescend.isEventActive then
+        if player.isGodMod and player:isGodMod() then
+            isSafe = true
+        else
+            -- Check if player is outside of a building
+            local square = player:getCurrentSquare()
+            local isOutside = not square or square:isOutside()
+            
+            if isOutside then
+                -- Check if wearing a valid gas mask
+                local hasMask = false
+                local wornItems = player:getWornItems()
+                if wornItems then
+                    for i = 0, wornItems:size() - 1 do
+                        local wornItem = wornItems:get(i)
+                        local item = wornItem:getItem()
+                        if item then
+                            local fullType = item:getFullType()
+                            local shortType = item:getType()
+                            local isGasMask = TheFogDescend.gasMasks[fullType] or TheFogDescend.gasMasks[shortType] or itemHasGasMaskTag(item)
+                            if isGasMask and item:getCondition() > 0 then
+                                hasMask = true
+                                break
                             end
-                        end
-
-                        if not hasMask then
-                            isSafe = false
                         end
                     end
                 end
-            end
 
-            local deathHours = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicityDeathHours")
-            if not deathHours or deathHours <= 0 then
-                error("[TheFogDescend] LivingWorldFramework config 'ToxicityDeathHours' is missing, nil, or invalid!")
+                if not hasMask then
+                    isSafe = false
+                end
             end
+        end
+    end
 
-            if isSafe then
-                -- Reduce toxicity slowly (1h of exposure = 2h of safe)
-                currentToxicity = math_max(0.0, currentToxicity - dt / (deathHours * 2))
-            else
-                -- Increase toxicity
-                currentToxicity = math_min(1.0, currentToxicity + dt / deathHours)
-            end
-            modData.fogToxicity = currentToxicity
+    local deathHours = LivingWorldFramework.GetConfig("TheFogDescend", "ToxicityDeathHours")
+    if not deathHours or deathHours <= 0 then
+        error("[TheFogDescend] LivingWorldFramework config 'ToxicityDeathHours' is missing, nil, or invalid!")
+    end
 
-            -- Direct health reduction for precise death timing (applied on hourly ticks)
-            if currentToxicity >= 1.0 then
-                local bodyDamage = player:getBodyDamage()
-                if bodyDamage then bodyDamage:ReduceGeneralHealth(100.0) end
-            elseif currentToxicity > 0.1 then
-                local bodyDamage = player:getBodyDamage()
-                if bodyDamage then
-                    local scale = (currentToxicity - 0.1) / 0.9
+    if isSafe then
+        -- Reduce toxicity slowly (1h of exposure = 2h of safe)
+        -- Recovery rate is half of buildup rate: buildup is 1/deathHours, recovery is 1/(deathHours * 2)
+        modData.fogToxicity = math_max(0.0, currentToxicity - dt / (deathHours * 2))
+    else
+        -- Increase toxicity
+        modData.fogToxicity = math_min(1.0, currentToxicity + dt / deathHours)
+    end
+
+    -- Apply toxicity effects
+    local stats = player:getStats()
+    if stats then
+        if modData.fogToxicity > 0 then
+            -- Set poison level to trigger Sickness/Fever moodle (0 to 100 in PZ)
+            local currentPoison = stats:get(CharacterStat.POISON) or 0.0
+            stats:set(CharacterStat.POISON, math_max(currentPoison, modData.fogToxicity * 45))
+
+            -- Increase fatigue faster/set minimum fatigue based on toxicity
+            local currentFatigue = stats:get(CharacterStat.FATIGUE) or 0.0
+            stats:set(CharacterStat.FATIGUE, math_max(currentFatigue, modData.fogToxicity * 0.9))
+
+            -- Decrease endurance
+            local currentEndurance = stats:get(CharacterStat.ENDURANCE) or 0.0
+            stats:set(CharacterStat.ENDURANCE, math_min(currentEndurance, 1.0 - (modData.fogToxicity * 0.8)))
+
+            -- Increase pain
+            local currentPain = stats:get(CharacterStat.PAIN) or 0.0
+            stats:set(CharacterStat.PAIN, math_max(currentPain, modData.fogToxicity * 80))
+
+            -- Direct health reduction for precise death timing
+            local bodyDamage = player:getBodyDamage()
+            if bodyDamage then
+                if modData.fogToxicity >= 1.0 then
+                    bodyDamage:ReduceGeneralHealth(100.0) -- Instant death
+                elseif modData.fogToxicity > 0.1 then
+                    -- Scale health damage. At 0.1 toxicity, no damage. Scale linearly up to 1.0.
+                    -- To lose 100 health over the remaining 90% of deathHours, the average damage rate is:
+                    -- 100 / (deathHours * 0.9) per hour.
+                    -- We scale this linearly with toxicity.
+                    local scale = (modData.fogToxicity - 0.1) / 0.9
                     local baseDamageRate = 100.0 / (deathHours * 0.9)
-                    local healthDamage = dt * baseDamageRate * scale * 2
+                    local healthDamage = dt * baseDamageRate * scale * 2 -- Multiplier of 2 ensures it curves and averages correctly
                     bodyDamage:ReduceGeneralHealth(healthDamage)
                 end
             end
 
             -- Coughing effect (2% chance per minute if exposed and toxicity > 0.05)
-            if not isSafe and currentToxicity > 0.05 then
+            if not isSafe and modData.fogToxicity > 0.05 then
+                -- OnPlayerUpdate runs up to 60 times/sec. The probability per call is dt * 60 (1 in-game minute = 1/60 hours)
+                -- 2% chance per minute = 0.02 * dt * 60 = dt * 1.2
                 if ZombRandFloat(0.0, 1.0) < (dt * 1.2) then
                     player:Say("*Cough* *Wheeze*")
                     local x = player:getX()
@@ -164,37 +207,11 @@ local function onPlayerUpdate(player)
                     end
                 end
             end
-        end
-    end
-
-    -- Apply visual, stats and moodle toxicity effects on EVERY frame
-    if currentToxicity > 0 then
-        local bodyDamage = player:getBodyDamage()
-        if bodyDamage then
-            -- Set poison level to trigger Sickness/Fever moodle (0 to 100 in PZ)
-            bodyDamage:setPoisonLevel(currentToxicity * 45)
-        end
-
-        -- Degrade body stats
-        local stats = player:getStats()
-        if stats then
-            -- Set minimum fatigue based on toxicity
-            local currentFatigue = stats:getFatigue()
-            stats:setFatigue(math_max(currentFatigue, currentToxicity * 0.9))
-
-            -- Decrease endurance
-            local currentEndurance = stats:getEndurance()
-            stats:setEndurance(math_min(currentEndurance, 1.0 - (currentToxicity * 0.8)))
-
-            -- Increase pain
-            local currentPain = stats:getPain()
-            stats:setPain(math_max(currentPain, currentToxicity * 80))
-        end
-    else
-        -- Clear poison level if toxicity is completely gone
-        local bodyDamage = player:getBodyDamage()
-        if bodyDamage and bodyDamage:getPoisonLevel() > 0 then
-            bodyDamage:setPoisonLevel(0)
+        else
+            -- Clear poison level if toxicity is completely gone
+            if stats:get(CharacterStat.POISON) > 0 then
+                stats:set(CharacterStat.POISON, 0)
+            end
         end
     end
 end

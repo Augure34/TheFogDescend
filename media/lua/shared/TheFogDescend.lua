@@ -26,6 +26,8 @@ TheFogDescend.presets = {
         TriggerChance = 0.20,
         PlaySiren = false,
         ShowRadioWarnings = true,
+        MakeSprinters = true,
+        MakeAggressive = true,
         ToxicFogEnabled = true,
         ToxicityDeathHours = 12
     },
@@ -39,6 +41,8 @@ TheFogDescend.presets = {
         TriggerChance = 0.40,
         PlaySiren = true,
         ShowRadioWarnings = true,
+        MakeSprinters = true,
+        MakeAggressive = true,
         ToxicFogEnabled = true,
         ToxicityDeathHours = 6
     },
@@ -52,6 +56,8 @@ TheFogDescend.presets = {
         TriggerChance = 1.00,
         PlaySiren = false,
         ShowRadioWarnings = true,
+        MakeSprinters = true,
+        MakeAggressive = true,
         ToxicFogEnabled = true,
         ToxicityDeathHours = 12
     }
@@ -128,8 +134,8 @@ local eventDef = {
         
         -- Custom options
         { id = "FogIntensity", name = "Target Fog Intensity Limit", type = "double", min = 0.0, max = 1.0, step = 0.05, default = 0.90, tooltip = "The maximum target fog density limit. If the weather is naturally foggier, the foggier weather is kept.", hidden = true },
-        { id = "MakeSprinters", name = "Zombies Are Sprinters", type = "boolean", default = true, tooltip = "Temporarily accelerates zombies to sprinters during the fog (if their vanilla speed setting is slower).", hidden = true },
-        { id = "MakeAggressive", name = "Zombies Are Aggressive", type = "boolean", default = true, tooltip = "Temporarily enhances zombie sight, hearing, and cognition during the fog (if their vanilla settings are poorer).", hidden = true },
+        { id = "MakeSprinters", name = "Zombies Are Sprinters", type = "boolean", default = true, tooltip = "Temporarily accelerates zombies to sprinters during the fog (if their vanilla speed setting is slower).", onChange = onFineTuneChange, hidden = false },
+        { id = "MakeAggressive", name = "Zombies Are Aggressive", type = "boolean", default = true, tooltip = "Temporarily enhances zombie sight, hearing, and cognition during the fog (if their vanilla settings are poorer).", onChange = onFineTuneChange, hidden = false },
         { id = "ToxicFogEnabled", name = "Toxic Fog Enabled", type = "boolean", default = true, tooltip = "If enabled, the fog is toxic and builds up player toxicity when outside without protection.", onChange = onFineTuneChange, hidden = false },
         { id = "ToxicityDeathHours", name = "Toxicity Death Time (Hours)", type = "integer", min = 1, max = 72, default = 12, tooltip = "The number of hours of continuous exposure to toxic fog before death.", onChange = onFineTuneChange, hidden = false }
     }
